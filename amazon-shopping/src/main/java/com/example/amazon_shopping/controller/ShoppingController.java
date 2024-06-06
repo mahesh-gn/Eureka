@@ -1,6 +1,7 @@
 package com.example.amazon_shopping.controller;
 
 import com.example.amazon_shopping.model.Orders;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -13,12 +14,18 @@ public class ShoppingController {
     RestTemplate restTemplate;
 
     @GetMapping("/amazon-payment/{price}")
-    public String invokePaymentService(@PathVariable int price){
-        String url="http://PAYMENT-SERVICE/api/v2/payNow/"+price;
-        return restTemplate.getForObject(url,String.class);
+    @CircuitBreaker(name = "userService", fallbackMethod = "payServiceDown")
+    public String invokePaymentService(@PathVariable int price) {
+        String url = "http://PAYMENT-SERVICE/api/v2/payNow/" + price;
+        return restTemplate.getForObject(url, String.class);
+    }
+
+    public String payServiceDown(int price, Throwable e) {
+        return "PaymentService is Down, Please try again Later";
     }
 
     @PostMapping("/amazon-order")
+    @CircuitBreaker(name = "userService", fallbackMethod = "orderServiceDown")
     public ResponseEntity<String> invokeOrderService(@RequestBody Orders orders) {
         String url = "http://ORDER-SERVICE/orders/orderItems";
         HttpHeaders headers = new HttpHeaders();
@@ -29,4 +36,7 @@ public class ShoppingController {
         return responseEntity;
     }
 
+    public ResponseEntity<String> orderServiceDown(Orders orders, Throwable e) {
+        return ResponseEntity.ok("Order Service is Down, Try again later");
+    }
 }
