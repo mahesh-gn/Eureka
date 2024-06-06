@@ -1,6 +1,8 @@
 package com.example.amazon_shopping.controller;
 
 import com.example.amazon_shopping.model.Orders;
+import com.example.amazon_shopping.model.TransactionRequest;
+import com.example.amazon_shopping.model.TransactionResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -38,5 +40,16 @@ public class ShoppingController {
 
     public ResponseEntity<String> orderServiceDown(Orders orders, Throwable e) {
         return ResponseEntity.ok("Order Service is Down, Try again later");
+    }
+
+    @PostMapping("/book-order")
+    @CircuitBreaker(name = "orderService", fallbackMethod = "orderServiceDownTransaction")
+    public TransactionResponse bookOrder(@RequestBody TransactionRequest request) {
+        String url = "http://ORDER-SERVICE/orders/bookOrder";
+        return restTemplate.postForObject(url,request,TransactionResponse.class);
+    }
+
+    public TransactionResponse orderServiceDownTransaction(TransactionRequest request, Throwable e) {
+        return new TransactionResponse(null, null, 0, "Order Service is down. Please try later");
     }
 }
